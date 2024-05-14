@@ -1,4 +1,5 @@
 import prisma from "../lib/prisma.js";
+import jwt from "jsonwebtoken";
 
 /* GET ALL POSTS */
 export const getPost = async (req, res) => {
@@ -49,7 +50,32 @@ export const singlePost = async (req, res) => {
         },
       },
     });
-    res.status(200).json(post);
+
+    let userId;
+
+    const token = req.cookies?.token;
+    if (!token) {
+      userId = null;
+    } else {
+      jwt.verify(token, process.env.JWT_TOKEN_SECRET, async (err, payload) => {
+        if (err) {
+          userId = null;
+        } else {
+          userId = payload.id;
+        }
+      });
+    }
+
+    const saved = await prisma.savedPost.findUnique({
+      where: {
+        userId_postId: {
+          postId: id,
+          userId,
+        },
+      },
+    });
+
+    res.status(200).json({ ...post, isSaved: saved ? true : false });
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Faild to get post" });
